@@ -1,3 +1,8 @@
 # ignore vscode items
 /.vscode
+# ignore CMake items
 /build
+# ignore cppbuild items
+*.exe
+# ignore others
+/.pytest_cache
