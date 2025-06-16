@@ -7,24 +7,118 @@
 #include <fstream>
 #include <utility>
 #include <unordered_map>
+#include <memory>
+#include <functional>
+#include <array>
 
-// 数据结构的向前声明
-struct XiangqiPiece;
+struct Pos {
+    int x, y;
+    inline bool operator==(const Pos& other) const { return x == other.x && y == other.y; }
+};
+namespace std {
+    template <>
+    struct hash<Pos> {
+        inline std::size_t operator()(const Pos& p) const noexcept {
+            return std::hash<int>()(p.x) ^ (std::hash<int>()(p.y) << 1);
+        }
+    };
+}
+// using
+using String = std::string;
+using VecPos = std::vector<Pos>;
+using Offset = std::unordered_map<bool, std::vector<Pos>>;
+
+// 基础结构的向前声明
+struct Board;
+struct Pieces;
+struct Pawns;
+struct Rooks;
+struct Knights;
+struct Cannons;
+struct Elephants;
+struct Mandarins;
+struct General;
+
+// 棋子
+struct Pieces {
+    virtual ~Pieces() = default;
+    virtual VecPos Predict(const Board& broad) = 0;
+    virtual String getPieceName() = 0;
+
+    static bool inBound(const Pos& p);
+    static bool inBoundary(bool c, const Pos& p);
+    static bool inCamp(bool c, const Pos& p);
+    Pos Position;         // 记录棋子位置
+    bool color;           // 记录棋子所属方向
+
+    Pieces(const Pos& p, bool isRed);
+};
+// 兵/卒
+struct Pawns: public Pieces {
+    Pawns(const Pos& p, bool isRed) : Pieces(p, isRed) {}
+    ~Pawns();
+    VecPos Predict(const Board& broad) override;
+    String getPieceName() override;
+};
+// 车
+struct Rooks: public Pieces {
+    Rooks(const Pos& p, bool isRed) : Pieces(p, isRed) {}
+    ~Rooks();
+    VecPos Predict(const Board& broad) override;
+    String getPieceName() override;
+};
+// 马
+struct Knights: public Pieces {
+    Knights(const Pos& p, bool isRed) : Pieces(p, isRed) {}
+    ~Knights();
+    VecPos Predict(const Board& broad) override;
+    String getPieceName() override;
+};
+// 炮
+struct Cannons: public Pieces {
+    Cannons(const Pos& p, bool isRed) : Pieces(p, isRed) {}
+    ~Cannons();
+    VecPos Predict(const Board& broad) override;
+    String getPieceName() override;
+};
+// 相/象
+struct Elephants: public Pieces {
+    Elephants(const Pos& p, bool isRed) : Pieces(p, isRed) {}
+    ~Elephants();
+    VecPos Predict(const Board& broad) override;
+    String getPieceName() override;
+};
+// 士/仕
+struct Mandarins: public Pieces {
+    Mandarins(const Pos& p, bool isRed) : Pieces(p, isRed) {}
+    ~Mandarins();
+    VecPos Predict(const Board& broad) override;
+    String getPieceName() override;
+};
+// 帅/将
+struct General: public Pieces {
+    General(const Pos& p, bool isRed) : Pieces(p, isRed) {}
+    ~General();
+    VecPos Predict(const Board& broad) override;
+    String getPieceName() override;
+};
+
+// 进阶结构的向前声明
+
 class Player;
 class XiangqiGame;
 
 // using
-using Pos = std::pair<int, int>;
-using VecXQ = std::vector<XiangqiPiece>;
-using String = std::string;
-using PosMap = std::unordered_map<std::pair<int, int>, XiangqiPiece>;
+using VecXQ = std::vector<std::unique_ptr<Pieces>>;
+using PosMap = std::unordered_map<Pos, std::unique_ptr<Pieces>>;
 
-// 棋子
-struct XiangqiPiece {
-    String type;          // 区分棋子类型
-    Pos Position;         // 记录棋子位置
-    bool color;           // 记录棋子所属方向
-    XiangqiPiece(String str, const Pos& p, bool isRed);
+// 棋盘
+struct Board {
+    PosMap situation;               // 当前棋盘布局
+    static PosMap initializer();
+
+    bool move(const Pos& from, const Pos& to);
+    Board();
 };
 // 玩家
 class Player {
@@ -42,17 +136,10 @@ public:
 // Game
 class XiangqiGame {
 private:
-    Player gamePlayer[2];            // 用户
-    VecXQ allPieces;                 // 所有棋子的数据
-    bool pieceExist[9][10];          // 记录某一位置是否有棋子
-    const Pos broadSize = {9, 10};      // 棋盘大小
-    static const VecXQ apInitData;      // 储存所有棋子的初始位置数据
-    static const bool peInitData[9][10];// 在所有棋子初始位置对应的坐标上写 true，其他地方写 false
+    Player gamePlayer[2];               // 用户
 public:
     XiangqiGame();
     XiangqiGame(const Player& p1, const Player& p2);
-
-    std::vector<Pos> predicted(size_t pieceIdx) const;
-    void move(size_t pieceIdx, const Pos& target);
 };
-#endif
+
+#endif // CHINESECHESS_H
