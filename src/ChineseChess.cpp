@@ -297,20 +297,56 @@ VecPos Elephants::Predict(const Board& board) {
 String Elephants::getPieceName() { return color == COLOR::RED ? "相" : "象"; }
 
 // Mandarins
-// TODO
 Mandarins::~Mandarins() {}
 VecPos Mandarins::Predict(const Board& board) {
     VecPos targets;
-    /* 还需一个检查在格子里的函数 */
+    const Pos& p = Position;
+    static const VecPos dir = {
+        {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+    };
+    auto canReach = [&](const Pos& destination) {
+        // 不在九宫之内，不可达
+        if(!inCamp(this->color, destination)) { return false; }
+        // 在九宫之内，查成分
+        auto it = board.situation.find(destination);
+        // 位置 没棋子 或者 是敌方棋子 则可达
+        if(it == board.situation.end() || it->second->color != this->color) { return true; }
+        // 在九宫格之内、有棋子且是自己的棋子，则不可达
+        return false;
+    };
+    for(const Pos& d : dir) {
+        Pos dest = {p.x + d.x, p.y + d.y};
+        if(canReach(dest)) { targets.push_back(dest); }
+    }
     return targets;
 }
 String Mandarins::getPieceName() { return color == COLOR::RED ? "仕" : "士"; }
-/* 终于…… 快要…… 写完了…… 这一堆…… predict */
+
 // General
-// TODO
 General::~General() {}
-VecPos General::Predict(const Board& board) { return {}; }
-String General::getPieceName() { return ""; }
+VecPos General::Predict(const Board& board) {
+    VecPos targets;
+    const Pos& p = Position;
+    static const VecPos dir = {
+        {0, 1}, {0, -1}, {1, 0}, {-1, 0}
+    };
+    auto canReach = [&](const Pos& destination) -> bool {
+        // 目的地不在九宫格内，不可达
+        if(!inCamp(this->color, destination)) { return false; }
+        // 在九宫格内，查成分
+        auto it = board.situation.find(destination);
+        // 空 / 敌方棋子，可达
+        if(it == board.situation.end() || it->second->color != this->color) { return true; }
+        // 我方棋子，不可达
+        return false;
+    };
+    for(const Pos& d : dir) {
+        Pos dest = {p.x + d.x, p.y + d.y};
+        if(canReach(dest)) { targets.push_back(dest); }
+    }
+    return targets;
+}
+String General::getPieceName() { return color == COLOR::RED ? "帅" : "将"; }
 
 // Broad
 PosMap Board::initializer() {
