@@ -29,7 +29,7 @@ and also, please be merciful about my English (sorry about maybe sometimes impol
 ~~If my memory wasn't wrong~~
 ```bash
 git clone ${TODO: add url}
-cd ChinedeChess
+cd ChineseChess
 mkdir build
 cd build
 cmake ..

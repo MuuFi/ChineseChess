@@ -28,7 +28,7 @@
 ~~我没记错的话应该没有用C++14以上的特性~~
 ```bash
 git clone ${TODO: add url}
-cd ChinedeChess
+cd ChineseChess
 mkdir build
 cd build
 cmake ..
