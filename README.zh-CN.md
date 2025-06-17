@@ -5,7 +5,7 @@
 因为我想<br>
 
 第一次写README，不符合规范请指出<br>
-
+~~我的英语好烂~~
 
 ## 介绍
 
@@ -27,7 +27,7 @@
 **项目使用~~我现学现卖的~~CMake构建，目前暂未测试最低的C++版本但C++20肯定没什么问题（大概）**<br>
 ~~我没记错的话应该没有用C++14以上的特性~~
 ```bash
-git clone ${TODO: add url}
+git clone https://github.com/MuuFi/ChineseChess
 cd ChineseChess
 mkdir build
 cd build

@@ -28,7 +28,7 @@ and also, please be merciful about my English (sorry about maybe sometimes impol
 **This Project can be constructed by CMake ~~which I have experience for about 30 minutes~~ and It's support C++14**<br>
 ~~If my memory wasn't wrong~~
 ```bash
-git clone ${TODO: add url}
+git clone https://github.com/MuuFi/ChineseChess
 cd ChineseChess
 mkdir build
 cd build
