@@ -5,8 +5,8 @@ Why I reinventing the wheel ?<br>
 Because I want.<br>
 
 It's my first time to write this, please be merciful, and told me how can it be better.<br>
-and also, please be merciful about my English (sorry about maybe sometimes impolitical)<br>
-
+and also, please be merciful about my English (sorry about maybe sometimes impolite)<br>
+~~I want to die.~~
 
 ## Introduction
 
