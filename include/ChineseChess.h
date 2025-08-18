@@ -104,7 +104,8 @@ struct General: public Pieces {
 };
 
 // 进阶结构的向前声明
-
+struct Move;
+struct Board;
 class Player;
 class XiangqiGame;
 
@@ -112,12 +113,31 @@ class XiangqiGame;
 using VecXQ = std::vector<std::unique_ptr<Pieces>>;
 using PosMap = std::unordered_map<Pos, std::unique_ptr<Pieces>>;
 
+struct Move {
+    Pos from;
+    Pos to;
+    bool color;
+    Move();
+    friend std::istream& operator>>(std::istream& is, Move& move) {
+        // 逻辑：读取顺序输入的from.x, from.y, to.x, to.y
+        unsigned int n;
+        is >> n;
+        move.to.y = n % 10;
+        n /= 10;
+        move.to.x = n % 10;
+        n /= 10;
+        move.from.y = n % 10;
+        n /= 10;
+        move.from.x;
+        return is;
+    }
+};
 // 棋盘
 struct Board {
     PosMap situation;               // 当前棋盘布局
     static PosMap initializer();
 
-    bool move(const Pos& from, const Pos& to);
+    bool move(const Move& moveData);// 兼顾移动和吃子
     Board();
 };
 // 玩家
@@ -132,14 +152,25 @@ public:
 
     void serialize(std::ofstream& sf);               // 把类数据序列化到文件
     void deserialize(std::ifstream& lf);             // 从文件读取序列化到数据
+    Pos select();         // 选择一个地点，返回位置。感觉这不应该写在这里？
 };
 // Game
 class XiangqiGame {
 private:
-    Player gamePlayer[2];               // 用户
+    Player gamePlayerRed; // 红方
+    Player gamePlayerBla; // 黑方
+    Board board;          // 棋盘
+    // ADD: 增加一些成员变量
 public:
     XiangqiGame();
     XiangqiGame(const Player& p1, const Player& p2);
+    
+    Move getPlayerMove(bool currPlayer);
+    bool isValid(const Move& moveData);
+    void executeMove(const Move& moveData);
+    bool checkMate(bool oppoPlayer);
+    void GamePlay();
+    
 };
 
 #endif // CHINESECHESS_H

@@ -388,8 +388,41 @@ PosMap Board::initializer() {
     return posMap;
 }
 
-// TODO
-bool Board::move(const Pos& from, const Pos& to) { return false; }
+bool Board::move(const Move& moveData) {
+    // 需要 C++17
+    auto go = [&]() {
+        auto transfer = situation.extract(moveData.from);
+        transfer.key() = moveData.to;
+        situation.insert(std::move(transfer));
+    };
+    /* 返回 true 表示移动成功
+    *  返回 false 表示移动失败
+    */
+    // from 位置的 PosMap 的迭代器
+    auto fpmi = situation.find(moveData.from);
+    // 没这个棋子
+    if(fpmi == situation.end()) { return false; }
+    // 你拿了别人的棋子
+    if(fpmi->second->color != moveData.color) { return false; }
+    
+    // to 位置的 PosMap 迭代器
+    auto tpmi = situation.find(moveData.to);
+    // 注意，设计上 to 位置只能由 predict 得到，所以默认是合法的位置，但需要检查上面有没有棋子
+    // 这个是没有棋子的情况，直接移动
+    if(tpmi == situation.end()) {
+        go();
+        return true;
+    }
+    // 剩下有棋子的情况，经过 predict 的过滤只能是敌方棋子
+    // 但还是要判断一下
+    if(tpmi->second->color != moveData.color) {
+        situation.erase(moveData.to);
+        go();
+        return true;
+    }
+    // 防御
+    return false;
+}
 Board::Board(): situation(initializer()) {}
 
 // Player
@@ -401,6 +434,68 @@ Player::Player(std::ifstream& initFile) { deserialize(initFile); }
 void Player::serialize(std::ofstream& sf) {}
 void Player::deserialize(std::ifstream& lf) {}
 
+// Move
+Move::Move(): from(), to(), color() {}
+
 // XiangqiGame
-XiangqiGame::XiangqiGame(): gamePlayer() {}
-XiangqiGame::XiangqiGame(const Player& p1, const Player& p2): gamePlayer{p1, p2} {}
+XiangqiGame::XiangqiGame(): gamePlayerRed(), gamePlayerBla(), board() {}
+XiangqiGame::XiangqiGame(const Player& p1, const Player& p2): gamePlayerRed(p1), gamePlayerBla(p2), board() {}
+Move XiangqiGame::getPlayerMove(bool currPlayer) {
+    Move moveData;
+    moveData.color = currPlayer;
+    // 从控制台输入from的坐标和to的坐标，中间不要有空格
+    // 例如输入：4213
+    Move getMove;
+    std::cin >> getMove;// 取模实现，见头文件
+    return moveData;
+}
+bool XiangqiGame::isValid(const Move& moveData) {
+    // TODO: code
+    // 在这里检查合法性
+
+    // 调用 predict 函数后验判断
+    return false;
+}
+void XiangqiGame::executeMove(const Move& moveData) {
+    // TODO: code
+    // 调用 move 函数就可
+    return;
+}
+bool XiangqiGame::checkMate(bool checkPlayer) {
+    // TODO: code
+    // 还没想好
+    return false;
+}
+void XiangqiGame::GamePlay() {
+    const PosMap& gameBoard = board.situation;
+    bool nowTurn = COLOR::RED;
+    bool gameFinish = false;
+    // 关于输入
+    // 本质上都是要么从文件读取，要么从命令行读取，要么从网络通信读取
+    // 封装一个Move对象用于构造输入，再Game类中兼容不同的对象
+
+    /* 梳理一下逻辑吧
+    *  首先需要构造 Move 对象接收 移动信息(from to)
+    *  在 isValid 函数中使用判断移动信息
+    *  使用 executeMove 执行移动
+    *  然后根据整个棋盘的信息，在 checkMate 函数中判断是否将军或者和棋之类
+    *  
+    *  所以整个这一段就是在综合处理移动，也就是象棋的核心玩法：移动棋子
+    *  起名为 GamePlay 不为过
+    */
+    while(!gameFinish) {
+        Move inputMoveData = getPlayerMove(nowTurn);
+        if(isValid(inputMoveData)) {
+            executeMove(inputMoveData);
+            nowTurn = !nowTurn;
+            if(checkMate(!nowTurn)) {
+                gameFinish = true;
+                // 发表获胜感言
+                // 举办胜者舞台（什么）
+            }
+        }
+        break;// tmp，暂时防止死循环
+        // TODO
+        // 我需要http单头文件库
+    }
+}
