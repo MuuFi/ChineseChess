@@ -7,9 +7,7 @@ using PosMap = std::unordered_map<Pos, std::unique_ptr<Pieces>>;
 using Offset = std::unordered_map<bool, std::vector<Pos>>;
 using VecPos = std::vector<Pos>;
 
-enum COLOR {
-    RED = true, BLACK = false
-};
+
 // Pieces
 Pieces::Pieces(const Pos& p, bool isRed): Position(p), color(isRed) {}
 bool Pieces::inBound(const Pos& p) {
@@ -17,7 +15,7 @@ bool Pieces::inBound(const Pos& p) {
         && (p.y >= 0) && (p.y <= 9);
 }
 bool Pieces::inBoundary(bool c, const Pos& p) {
-    return c == COLOR::RED ? 
+    return c == COLOR::RED_WAY ? 
     // 红方"领地"
     (p.x >= 0) && (p.x <= 8) &&
     (p.y >= 0) && (p.y <= 4) :
@@ -26,7 +24,7 @@ bool Pieces::inBoundary(bool c, const Pos& p) {
     (p.y >= 5) && (p.y <= 9) ;
 }
 bool Pieces::inCamp(bool c, const Pos& p) {
-    return c == COLOR::RED ?
+    return c == COLOR::RED_WAY ?
     // 红方帅帐
     (p.x >= 3) && (p.x <= 5) &&
     (p.y >= 0) && (p.y <= 2) :
@@ -41,13 +39,13 @@ VecPos Pawns::Predict(const Board& board) {
     const Pos& p = Position;
     // 过河后的移动
     static const Offset RIVER_OFFSETS = {
-        {COLOR::RED,   {{-1, 0}, {0, 1}, {1, 0}}},
-        {COLOR::BLACK, {{-1, 0}, {0,-1}, {1, 0}}}
+        {COLOR::RED_WAY,   {{-1, 0}, {0, 1}, {1, 0}}},
+        {COLOR::BLACK_WAY, {{-1, 0}, {0,-1}, {1, 0}}}
     };
     // 过河前的移动，按颜色索引
     static const Offset MOVE_OFFSETS = {
-        {COLOR::RED,   {{0, 1}}},
-        {COLOR::BLACK, {{0,-1}}}
+        {COLOR::RED_WAY,   {{0, 1}}},
+        {COLOR::BLACK_WAY, {{0,-1}}}
     };
 
     auto checkDir = [&](const Pos& destination) {
@@ -59,7 +57,7 @@ VecPos Pawns::Predict(const Board& board) {
     };
     // 判断棋子有没有过河
     // 红方纵坐标大于 4 算过河，黑方纵坐标小于 5 算过河 
-    bool isAcrossRiver = (color == COLOR::RED ? Position.y > 4 : Position.y < 5);
+    bool isAcrossRiver = (color == COLOR::RED_WAY ? Position.y > 4 : Position.y < 5);
     // 应用状态模式
     if(isAcrossRiver) {
         const auto& offsets = RIVER_OFFSETS.at(color);
@@ -76,7 +74,7 @@ VecPos Pawns::Predict(const Board& board) {
     }
     return targets;
 }
-String Pawns::getPieceName() { return color == COLOR::RED ? "兵" : "卒"; }
+String Pawns::getPieceName() { return color == COLOR::RED_WAY ? "兵" : "卒"; }
 
 // Rooks
 Rooks::~Rooks() {}
@@ -294,7 +292,7 @@ VecPos Elephants::Predict(const Board& board) {
     }
     return targets;
 }
-String Elephants::getPieceName() { return color == COLOR::RED ? "相" : "象"; }
+String Elephants::getPieceName() { return color == COLOR::RED_WAY ? "相" : "象"; }
 
 // Mandarins
 Mandarins::~Mandarins() {}
@@ -320,7 +318,7 @@ VecPos Mandarins::Predict(const Board& board) {
     }
     return targets;
 }
-String Mandarins::getPieceName() { return color == COLOR::RED ? "仕" : "士"; }
+String Mandarins::getPieceName() { return color == COLOR::RED_WAY ? "仕" : "士"; }
 
 // General
 General::~General() {}
@@ -346,7 +344,7 @@ VecPos General::Predict(const Board& board) {
     }
     return targets;
 }
-String General::getPieceName() { return color == COLOR::RED ? "帅" : "将"; }
+String General::getPieceName() { return color == COLOR::RED_WAY ? "帅" : "将"; }
 
 // Broad
 PosMap Board::initializer() {
@@ -431,11 +429,34 @@ Player::Player(String str): name(str) {}
 Player::Player(std::ifstream& initFile) { deserialize(initFile); }
 
 // TODO: 一堆函数没写
-void Player::serialize(std::ofstream& sf) {}
-void Player::deserialize(std::ifstream& lf) {}
+void Player::serialize(std::ofstream& sf) {
+    /* TODO */
+}
+void Player::deserialize(std::ifstream& lf) {
+    /* TODO */
+}
 
 // Move
 Move::Move(): from(), to(), color() {}
+void Move::serialize(std::ofstream sf) {
+    /* code */
+}
+void Move::deserialize(std::ifstream lf) {
+    /* code */
+}
+std::istream& operator>>(std::istream& is, Move& move) {
+    // 逻辑：读取顺序输入的from.x, from.y, to.x, to.y
+    unsigned int n;
+    is >> n;
+    move.to.y = n % 10;
+    n /= 10;
+    move.to.x = n % 10;
+    n /= 10;
+    move.from.y = n % 10;
+    n /= 10;
+    move.from.x;
+    return is;
+}
 
 // XiangqiGame
 XiangqiGame::XiangqiGame(): gamePlayerRed(), gamePlayerBla(), board() {}
@@ -446,30 +467,32 @@ Move XiangqiGame::getPlayerMove(bool currPlayer) {
     // 从控制台输入from的坐标和to的坐标，中间不要有空格
     // 例如输入：4213
     Move getMove;
-    std::cin >> getMove;// 取模实现，见头文件
+    std::cin >> getMove;
     return moveData;
 }
 bool XiangqiGame::isValid(const Move& moveData) {
-    // TODO: code
-    // 在这里检查合法性
+    // 获取棋盘状态
+    const PosMap& situ = board.situation;
+    // 检查棋子
+    auto c_it = situ.find(moveData.from);
+    if(c_it == situ.end()) { return false; } // 这没棋子
 
-    // 调用 predict 函数后验判断
+    // 获取所有可达地点；轮询检查目标是否可达
+    const VecPos& poses = c_it->second->Predict(board);
+    for(auto p : poses) {
+        if(p == moveData.to) { return true; }
+    }
     return false;
 }
-void XiangqiGame::executeMove(const Move& moveData) {
-    // TODO: code
-    // 调用 move 函数就可
-    return;
-}
-bool XiangqiGame::checkMate(bool checkPlayer) {
+void XiangqiGame::executeMove(const Move& moveData) { board.move(moveData); }
+bool XiangqiGame::checkMate(const Move& lastMove) {
     // TODO: code
     // 还没想好
-    return false;
+    return gameFinish;
 }
+
 void XiangqiGame::GamePlay() {
     const PosMap& gameBoard = board.situation;
-    bool nowTurn = COLOR::RED;
-    bool gameFinish = false;
     // 关于输入
     // 本质上都是要么从文件读取，要么从命令行读取，要么从网络通信读取
     // 封装一个Move对象用于构造输入，再Game类中兼容不同的对象
@@ -483,19 +506,18 @@ void XiangqiGame::GamePlay() {
     *  所以整个这一段就是在综合处理移动，也就是象棋的核心玩法：移动棋子
     *  起名为 GamePlay 不为过
     */
-    while(!gameFinish) {
-        Move inputMoveData = getPlayerMove(nowTurn);
-        if(isValid(inputMoveData)) {
-            executeMove(inputMoveData);
-            nowTurn = !nowTurn;
-            if(checkMate(!nowTurn)) {
-                gameFinish = true;
-                // 发表获胜感言
-                // 举办胜者舞台（什么）
-            }
-        }
-        break;// tmp，暂时防止死循环
-        // TODO
-        // 我需要http单头文件库
+    
+    // 似乎不需要这个循环，只需要在主循环里每次调用即可
+    // TODO 需要重新思考一下游戏流程
+    Move inputMoveData = getPlayerMove(nowTurn);
+    if(isValid(inputMoveData)) {
+        executeMove(inputMoveData);
+        checkMate(inputMoveData);
+        nowTurn = !nowTurn;
     }
+}
+
+const Board& XiangqiGame::GetBoardInfo() const {
+    const Board& situation = board;
+    return situation;
 }

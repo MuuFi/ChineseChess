@@ -38,6 +38,8 @@ set_target_properties(Boost::system PROPERTIES
 add_executable(ChessGame
     src/main.cpp
     src/ChineseChess.cpp
+    src/graphic.cpp
+    src/server.cpp
 )
 
 # 包含头文件目录
@@ -47,10 +49,19 @@ target_include_directories(ChessGame PRIVATE
     ${BOOST_INCLUDE_DIR}
 )
 
+# Release 模式下定义 NDEBUG 宏
+target_compile_definitions(ChessGame PRIVATE
+    $<$<CONFIG:Release>:NDEBUG>
+)
+# Debug 模式下定义 DEBUG 宏
+target_compile_definitions(ChessGame PRIVATE
+    $<$<CONFIG:Debug>:DEBUG>
+)
+
 # 链接库
 target_link_libraries(ChessGame PRIVATE
     raylib
-    winmm          # raylib在Windows上的依赖
-    gdi32          # raylib在Windows上的依赖
+    winmm
+    gdi32
     Boost::system
 )

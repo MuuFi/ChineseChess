@@ -11,6 +11,10 @@
 #include <functional>
 #include <array>
 
+enum COLOR {
+    RED_WAY = true, BLACK_WAY = false
+};
+
 struct Pos {
     int x, y;
     inline bool operator==(const Pos& other) const { return x == other.x && y == other.y; }
@@ -117,20 +121,14 @@ struct Move {
     Pos from;
     Pos to;
     bool color;
+
     Move();
-    friend std::istream& operator>>(std::istream& is, Move& move) {
-        // 逻辑：读取顺序输入的from.x, from.y, to.x, to.y
-        unsigned int n;
-        is >> n;
-        move.to.y = n % 10;
-        n /= 10;
-        move.to.x = n % 10;
-        n /= 10;
-        move.from.y = n % 10;
-        n /= 10;
-        move.from.x;
-        return is;
-    }
+    ~Move() = default;
+
+    void serialize(std::ofstream sf);
+    void deserialize(std::ifstream lf);
+    
+    friend std::istream& operator>>(std::istream& is, Move& move);
 };
 // 棋盘
 struct Board {
@@ -139,6 +137,7 @@ struct Board {
 
     bool move(const Move& moveData);// 兼顾移动和吃子
     Board();
+    ~Board() = default;
 };
 // 玩家
 class Player {
@@ -152,7 +151,6 @@ public:
 
     void serialize(std::ofstream& sf);               // 把类数据序列化到文件
     void deserialize(std::ifstream& lf);             // 从文件读取序列化到数据
-    Pos select();         // 选择一个地点，返回位置。感觉这不应该写在这里？
 };
 // Game
 class XiangqiGame {
@@ -160,6 +158,8 @@ private:
     Player gamePlayerRed; // 红方
     Player gamePlayerBla; // 黑方
     Board board;          // 棋盘
+    bool nowTurn = 1;
+    bool gameFinish = false;
     // ADD: 增加一些成员变量
 public:
     XiangqiGame();
@@ -168,9 +168,10 @@ public:
     Move getPlayerMove(bool currPlayer);
     bool isValid(const Move& moveData);
     void executeMove(const Move& moveData);
-    bool checkMate(bool oppoPlayer);
+    bool checkMate(const Move& lastMove);
     void GamePlay();
     
+    const Board& GetBoardInfo() const;
 };
 
 #endif // CHINESECHESS_H
