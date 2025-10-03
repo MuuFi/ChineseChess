@@ -40,6 +40,7 @@ add_executable(ChessGame
     src/ChineseChess.cpp
     src/graphic.cpp
     src/server.cpp
+    src/client.cpp
 )
 
 # 包含头文件目录
@@ -63,5 +64,6 @@ target_link_libraries(ChessGame PRIVATE
     raylib
     winmm
     gdi32
+    ws2_32
     Boost::system
 )

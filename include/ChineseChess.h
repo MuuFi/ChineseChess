@@ -1,6 +1,6 @@
 #ifndef CHINESECHESS_H
 #define CHINESECHESS_H
-
+/* 需要进行一次大的调整，*/
 #include <iostream>
 #include <string>
 #include <vector>
@@ -127,7 +127,7 @@ struct Move {
 
     void serialize(std::ofstream sf);
     void deserialize(std::ifstream lf);
-    
+
     friend std::istream& operator>>(std::istream& is, Move& move);
 };
 // 棋盘
