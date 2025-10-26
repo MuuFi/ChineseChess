@@ -1,6 +1,8 @@
 #ifndef CHINESECHESS_H
 #define CHINESECHESS_H
-/* 需要进行一次大的调整，*/
+/*
+我要重构，黑方红方需要重构，棋盘需要重构，棋子需要重构，设计毛病太多，不过以后再说
+*/
 #include <iostream>
 #include <string>
 #include <vector>
@@ -10,6 +12,8 @@
 #include <memory>
 #include <functional>
 #include <array>
+#include <stack>
+#include <cstdint>
 
 enum COLOR {
     RED_WAY = true, BLACK_WAY = false
@@ -52,6 +56,7 @@ struct Pieces {
     static bool inBound(const Pos& p);
     static bool inBoundary(bool c, const Pos& p);
     static bool inCamp(bool c, const Pos& p);
+
     Pos Position;         // 记录棋子位置
     bool color;           // 记录棋子所属方向
 
@@ -116,55 +121,72 @@ class XiangqiGame;
 // using
 using VecXQ = std::vector<std::unique_ptr<Pieces>>;
 using PosMap = std::unordered_map<Pos, std::unique_ptr<Pieces>>;
+using MovStack = std::stack<Move>;
 
 struct Move {
     Pos from;
     Pos to;
-    bool color;
+    bool color; /* 这个值需要在移动执行前插入，网络传输和本地传输不负责传输这个值 */
 
     Move();
+    Move(int data);
     ~Move() = default;
 
-    void serialize(std::ofstream sf);
-    void deserialize(std::ifstream lf);
+    int compressMove() const;
+
+    void serialize(std::ofstream& sf) const;
+    void deserialize(std::ifstream& lf);
 
     friend std::istream& operator>>(std::istream& is, Move& move);
 };
 // 棋盘
 struct Board {
     PosMap situation;               // 当前棋盘布局
-    static PosMap initializer();
 
-    bool move(const Move& moveData);// 兼顾移动和吃子
     Board();
     ~Board() = default;
+
+    static PosMap initializer();
+
+    bool move(const Move& moveData);// 兼顾移动和吃子，需要 moveData 有正确的所属方数据
+    
 };
 // 玩家
-class Player {
-private:
+struct Player {
     String name;       // 用户名
     bool way;          // 用户的方向，是否是红方
-public:
-    Player();                                        // 默认构造
-    Player(String str);                              // 输入用户名
-    Player(std::ifstream& initFile);                 // 调用 deserialize() 从文件读取
 
-    void serialize(std::ofstream& sf);               // 把类数据序列化到文件
-    void deserialize(std::ifstream& lf);             // 从文件读取序列化到数据
+    Player();                                        // 默认构造
+    Player(String str);                              // 用户名
+    Player(std::ifstream& initFile);                 // 从文件读取
+
+    void serialize(std::ofstream& sf);               // 对象数据序列化到文件
+    void deserialize(std::ifstream& lf);             // 从文件读取反序列化到对象
 };
 // Game
+namespace movRequest {
+    void movFromLocal(XiangqiGame& game, Move& mov);
+    void movFromINET(XiangqiGame& game, Move& mov);
+}
 class XiangqiGame {
 private:
-    Player gamePlayerRed; // 红方
-    Player gamePlayerBla; // 黑方
-    Board board;          // 棋盘
-    bool nowTurn = 1;
+    Player gamePlayerLocal; // 本地玩家
+    Player gamePlayerINET;  // 远程玩家
+    Board gameBoard;        // 棋盘
+    bool nowTurn = 1;       // 红先走
     bool gameFinish = false;
-    // ADD: 增加一些成员变量
+
+    MovStack history;       // 移动历史栈
+    String fileName;
+    std::fstream saveFile;
+
 public:
     XiangqiGame();
     XiangqiGame(const Player& p1, const Player& p2);
-    
+
+    void saveHistory(const String& fileName);// 这个参数没必要，仅调试
+    void loadHistory(const String& fileName);// 这个参数没必要，仅调试
+
     Move getPlayerMove(bool currPlayer);
     bool isValid(const Move& moveData);
     void executeMove(const Move& moveData);
@@ -172,6 +194,11 @@ public:
     void GamePlay();
     
     const Board& GetBoardInfo() const;
+
+    
+    friend void movRequest::movFromLocal(XiangqiGame& game, Move& mov);
+    friend void movRequest::movFromINET(XiangqiGame& game, Move& mov);
 };
+
 
 #endif // CHINESECHESS_H

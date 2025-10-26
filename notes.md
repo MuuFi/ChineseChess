@@ -4,10 +4,12 @@
 content
 ## socket网络编程
 ### socket的工作方式
-
 content
 ### 如何debug
 content
+
+
+
 ## impl模式
 ### 啥玩意
 impl模式（Implementation模式）就是：
@@ -72,4 +74,46 @@ struct a_Class::impl {
 也是缺点之一，所以作为这一点对应的优点，由于你不用每次都改头文件，编译器表示苦一苦人类又算得了什么
 **降低编译时间**
 才是王道
-## UI排布和字符解析
+
+
+
+## 字符解析
+### 为什么要解析，不能直接用吗？
+可以直接用，但是我想
+### 解析逻辑分析
+```cpp
+std::vector<uint32_t> parseUTF8(const std::string& str) {
+    std::vector<uint32_t> codepoints;
+    for (size_t i = 0; i < str.size(); ) {
+        uint32_t cp = 0;
+        unsigned char c = str[i];
+        // 学习ING，暂且用二进制
+        if (c < 0b10000000) { // 这是ASCII码的范畴
+            cp = c;
+            i += 1;
+        }
+        else if ((c >> 5) == 0b110) { // 如果前三位是 110，说明是双字节
+            cp = ((c & 0b00011111) << 6) | (str[i+1] & 0b00111111);
+            i += 2;
+        }
+        else if ((c >> 4) == 0b1110) { // 前四位是 1110，说明是三字节
+            cp = ((c & 0b00001111) << 12) | ((str[i+1] & 0b00111111) << 6) | (str[i+2] & 0b00111111);
+            i += 3;
+        }
+        else if ((c >> 3) == 0b11110) { // 前五位是 11110，说明是四字节
+            cp = ((c & 0b00000111) << 18) | ((str[i+1] & 0b00111111) << 12) | ((str[i+2] & 0b00111111) << 6) | (str[i+3] & 0b00111111);
+            i += 4;
+        }
+        codepoints.push_back(cp);
+    }
+    return codepoints;
+}
+```
+remaining
+## 字体载入
+```
+仅针对 raylib 的字体载入
+```
+想象一下你是raylib，现在你手上有一个ttf文件，ttf文件内是
+
+## UI排布

@@ -9,7 +9,8 @@
 #include "Chess_i.h"
 #include "ChineseChess.h"
 
-constexpr static size_t RecvMsgBufferSize = 256;
+constexpr static size_t RecvMsgBufSize = 256;
+constexpr static size_t RecvMovBufSize = 4;  // 其实可以用uint8_t，但暂时先这样
 
 struct Server::server_impl {
     WSADATA wsaData;
@@ -21,10 +22,14 @@ struct Server::server_impl {
     String lastErrMsg;
     int lastErrCode;
 
-    std::thread recvThread;
-    char MsgBuf[RecvMsgBufferSize];// recvThread recv()专用
-    Move MovBuf;
+    std::thread recvMsgThread;
+    char MsgBuf[RecvMsgBufSize];// recvMsgThread 专用
+
+    std::thread recvMovThread;
+    char MovBuf[RecvMovBufSize];
+
     String lastMsg;
+    bool hasNewMsg;
     bool running;
 };
 
@@ -78,20 +83,14 @@ void Server::initServErrProc(int errCode) {
         break;
     }
 }
-// 接收消息
-String Server::recvMsg() {
-    char (&buffer)[RecvMsgBufferSize] = pimpl->MsgBuf;// 创建一个 buffer 别名优化一下可读性
-    memset(buffer, 0, RecvMsgBufferSize);
-    int len = recv(pimpl->client_fd, buffer, RecvMsgBufferSize-1, 0);
-    if (len > 0) { return String(buffer, len); }
-    return String();
-}
+
 
 
 // 构造析构
 Server::Server() {
     pimpl = new server_impl();
     pimpl->port = 8080;
+    pimpl->lastErrCode = 0;
 
     initServer();
     acceptClient();
@@ -101,32 +100,55 @@ Server::Server() {
 }
 Server::~Server() {
     pimpl->running = false;
-    if (pimpl->recvThread.joinable()) { pimpl->recvThread.join(); }
+    if (pimpl->recvMsgThread.joinable()) { pimpl->recvMsgThread.join(); }
+    if (pimpl->recvMovThread.joinable()) { pimpl->recvMovThread.join(); }
     closesocket(pimpl->server_fd);
     WSACleanup();
     delete pimpl;
 }
 
+// send/recv Mov
 void Server::sendMove(const Move& sendData) {
-    // need serialize
-    // need to save the data to SSD
+    static const int DataBytesSize = 4;
+    int data = htonl(sendData.compressMove());
+    const char* buffer = reinterpret_cast<const char*>(&data);
+    send(pimpl->client_fd, buffer, DataBytesSize, 0);
 }
-Move Server::recvMove() {
-    /* code */
-    return Move();
+void Server::recvMovThreadFunc(XiangqiGame& game) {
+    char (&buffer)[RecvMovBufSize] = pimpl->MovBuf;
+    Move mov;
+    while(pimpl->running) {
+        int len = recv(pimpl->client_fd, buffer, RecvMovBufSize, 0);
+        if (len > 0) {
+            mov = Move(ntohl(*reinterpret_cast<int*>(buffer)));
+            movRequest::movFromINET(game, mov);
+        }
+        if (len == 0) {
+            pimpl->client_fd = INVALID_SOCKET;
+            pimpl->running = false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+}
+void Server::startRecvMov(XiangqiGame& game) {
+    pimpl->recvMovThread = std::thread(&Server::recvMovThreadFunc, this, std::ref(game));
 }
 
+// send/recv Msg
 void Server::sendMsg(const String& msg) {
     send(pimpl->client_fd, msg.c_str(), msg.size(), 0);
 }
-void Server::recvThreadFunc() {
+void Server::recvMsgThreadFunc() {
     String& msg = pimpl->lastMsg;                     // msg 是 pimpl->lastMsg 的别名
-    char (&buffer)[RecvMsgBufferSize] = pimpl->MsgBuf;// buffer 是 pimpl->MsgBuf 的别名
+    char (&buffer)[RecvMsgBufSize] = pimpl->MsgBuf;// buffer 是 pimpl->MsgBuf 的别名
     
     while(pimpl->running) {
-        memset(buffer, 0, RecvMsgBufferSize);         // 不必要的操作，只是为了安全和调试方便
-        int len = recv(pimpl->client_fd, buffer, RecvMsgBufferSize-1, 0); // 留一个 '\0' 防止溢出
-        if (len > 0) { msg = String(buffer, len); }   // 传入 lastMsg
+        memset(buffer, 0, RecvMsgBufSize);         // 不必要的操作，只是为了安全和调试方便
+        int len = recv(pimpl->client_fd, buffer, RecvMsgBufSize-1, 0); // 留一个 '\0' 防止溢出
+        if (len > 0) {
+            msg = String(buffer, len);
+            pimpl->hasNewMsg = true;
+        }
         if (len == 0) { 
             // 连接中断
             pimpl->client_fd = INVALID_SOCKET;
@@ -136,15 +158,14 @@ void Server::recvThreadFunc() {
     }
 }
 String& Server::getLastMsg() {
+    pimpl->hasNewMsg = false;
     return pimpl->lastMsg;
 }
-
-// 初始化线程
 void Server::startRecvThread() {
-    pimpl->recvThread = std::thread(&Server::recvThreadFunc, this);
+    pimpl->recvMsgThread = std::thread(&Server::recvMsgThreadFunc, this);
 }
 
-// 换成检查套接字的实现
+// 检查套接字的实现
 bool Server::isConnected() {
     return pimpl->client_fd != INVALID_SOCKET;
 }
@@ -160,13 +181,13 @@ void Server::acceptClient() {
         ErrCode = -5;
     }
 }
-// 
+// 重置端口
 void Server::setPort(int newPort) {
     if (newPort == pimpl->port) { return; }
 
     // 停止服务
     pimpl->running = false;
-    if(pimpl->recvThread.joinable()) { pimpl->recvThread.join(); }
+    if(pimpl->recvMsgThread.joinable()) { pimpl->recvMsgThread.join(); }
     if(pimpl->client_fd != INVALID_SOCKET) { closesocket(pimpl->client_fd); }
     if(pimpl->server_fd != INVALID_SOCKET) { closesocket(pimpl->server_fd); }
 

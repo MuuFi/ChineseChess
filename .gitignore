@@ -6,3 +6,4 @@
 *.exe
 # ignore others
 /.pytest_cache
+Ctodo.txt
